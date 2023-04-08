@@ -1,21 +1,21 @@
 #include <stdio.h>
-#include <stdbool.h>
-#include <inttypes.h>
 
-#include "metacmd.h"
 #include "reader.h"
+#include "metacmd.h"
 #include "statement.h"
 
 
 int main() {
     InputReader *r = ir_new_reader();
-    while (true) {
+    Table *t = new_table();
+
+    while (1) {
         printf(">>> ");
         if ( ir_read_line(r, stdin) < 0 ) {
             break;
         }
         if (is_meta_command(r->buf)) {
-            switch (exec_meta_command(r)) {
+            switch (exec_meta_command(r, t)) {
             case (META_COMMAND_SUCCESS):
                 continue;
             case (META_COMMAND_UNRECOGNIZED):
@@ -34,7 +34,13 @@ int main() {
             fprintf(stderr, "Syntax error: %s\n", r->buf);
             continue;
         }
-        exec_statement(&stmt);
+        switch (exec_statement(t, &stmt)) {
+        case EXECUTE_SUCCESS:
+            break;
+        case EXECUTE_TABLE_FULL:
+            break;
+        }
     }
+    free_table(t);
     ir_free(r);
 }

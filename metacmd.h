@@ -1,9 +1,11 @@
+#pragma once
 #ifndef METACMD_H
 #define METACMD_H
 
 #include <stdbool.h>
 
 #include "reader.h"
+#include "statement.h"
 
 
 typedef enum {
@@ -12,7 +14,7 @@ typedef enum {
 } MetaCommandExecResult;
 
 
-MetaCommandExecResult exec_meta_command(InputReader *r);
+MetaCommandExecResult exec_meta_command(InputReader *r, Table *t);
 bool is_meta_command(const char *s);
 
 #endif
