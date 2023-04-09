@@ -45,12 +45,19 @@ typedef struct {
 #define TABLE_MAX_PAGES 100
 
 typedef struct {
-    uint32_t num_rows;
+    int fd;
+    uint32_t file_len;
     void *pages[TABLE_MAX_PAGES];
+} Pager;
+
+typedef struct {
+    uint32_t num_rows;
+    Pager *pager;
 } Table;
 
 
-Table *new_table(void);
+Table *open_db(const char *filename);
+void close_db(Table *t);
 void free_table(Table *t);
 
 void *row_slot(Table *t, uint32_t row);

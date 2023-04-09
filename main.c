@@ -5,9 +5,13 @@
 #include "statement.h"
 
 
-int main() {
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("%s: file", argv[0]);
+        return 0;
+    }
     InputReader *r = ir_new_reader();
-    Table *t = new_table();
+    Table *t = open_db(argv[1]);
 
     while (1) {
         printf(">>> ");
@@ -48,6 +52,6 @@ int main() {
             break;
         }
     }
-    free_table(t);
     ir_free(r);
+    close_db(t);
 }

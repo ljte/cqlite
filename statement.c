@@ -1,5 +1,9 @@
+#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string.h>
 
 #include "statement.h"
 
@@ -72,8 +76,8 @@ ExecuteResult exec_statement(Table *t, Statement *stmt) {
 
 void serialize_row(void *buf, Row *r) {
     memcpy(buf + ID_OFFSET, &r->id, ID_SIZE);
-    memcpy(buf + USERNAME_OFFSET, &r->username, USERNAME_SIZE);
-    memcpy(buf + EMAIL_OFFSET, &r->email, EMAIL_SIZE);
+    strncpy(buf + USERNAME_OFFSET, r->username, USERNAME_SIZE);
+    strncpy(buf + EMAIL_OFFSET, r->email, EMAIL_SIZE);
 }
 
 void deserialize_row(void *buf, Row *r) {
@@ -82,29 +86,118 @@ void deserialize_row(void *buf, Row *r) {
     memcpy(&r->email, buf + EMAIL_OFFSET, EMAIL_SIZE);
 }
 
-Table *new_table(void) {
-    Table *t = malloc(sizeof(Table));
-    t->num_rows = 0;
-    for (int i = 0; i < TABLE_MAX_PAGES; i++) {
-        t->pages[i] = NULL;
+Pager *pager_open(const char *filename) {
+    int fd = open(filename, O_RDWR | O_CREAT, S_IWUSR | S_IRUSR);
+    if (fd < 0) {
+        perror("open");
+        exit(1);
     }
+    
+    int file_len = lseek(fd, 0, SEEK_END);
+
+    Pager *p = (Pager *) malloc(sizeof(Pager));
+
+    p->fd = fd;
+    p->file_len = file_len;
+    for (int i = 0; i < TABLE_MAX_PAGES; i++) {
+        p->pages[i] = NULL;
+    }
+    return p;
+}
+
+Table *open_db(const char *filename) {
+    Pager *p = pager_open(filename);
+
+    Table *t = malloc(sizeof(Table));
+    t->pager = p;
+    t->num_rows = p->file_len / ROW_SIZE;
     return t;
 }
 
-void free_table(Table *t) {
-    for (int i = 0; t->pages[i]; i++) {
-        free(t->pages[i]);
+void pager_flush(Pager *p, uint32_t page_idx, uint32_t size) {
+    if (p->pages[page_idx] == NULL) {
+        fprintf(stderr, "Can not flush to a null page: %u\n", page_idx);
+        exit(1);
     }
+
+    if (lseek(p->fd, page_idx * PAGE_SIZE, SEEK_SET) < 0) {
+        perror("lseek");
+        exit(1);
+    }
+
+    if (write(p->fd, p->pages[page_idx], size) < 0) {
+        perror("pager.write");
+        exit(1);
+    }
+}
+
+void close_db(Table *t) {
+    Pager *p = t->pager;
+    uint32_t all_pages = t->num_rows / ROWS_PER_PAGE;
+
+    for (uint32_t i = 0; i < all_pages; i++) {
+        if (p->pages[i] == NULL) continue;
+        printf("FLUSHING %u\n", i);
+        pager_flush(p, i, PAGE_SIZE);
+        free(p->pages[i]);
+        p->pages[i] = NULL;
+    }
+
+    uint32_t partial_page_rows = t->num_rows % ROWS_PER_PAGE;
+
+    if (partial_page_rows > 0) {
+        uint32_t page_idx = all_pages;
+        if (p->pages[page_idx] != NULL) {
+            pager_flush(p, page_idx, partial_page_rows * ROW_SIZE);
+            free(p->pages[page_idx]);
+            p->pages[page_idx] = NULL;
+        }
+    }
+
+    if (close(p->fd) < 0) {
+        perror("close");
+        exit(1);
+    }
+
+    for (uint32_t i = 0; i < TABLE_MAX_PAGES; i++) {
+        if (p->pages[i] != NULL) {
+            free(p->pages[i]);
+            p->pages[i] = NULL;
+        }
+    }
+
+    free(p);
     free(t);
+}
+
+void *get_page(Pager *p, uint32_t page_idx) {
+    if (page_idx > TABLE_MAX_PAGES) {
+        fprintf(stderr, "Page index out of bounds: %u\n", page_idx);
+    }
+
+    if (p->pages[page_idx] == NULL) {
+        void *page = malloc(PAGE_SIZE);
+        uint32_t n_pages = p->file_len / PAGE_SIZE;
+        if (p->file_len % PAGE_SIZE) {
+            n_pages++;
+        }
+
+        if (page_idx <= n_pages) {
+            lseek(p->fd, page_idx * PAGE_SIZE, SEEK_SET);
+
+            if (read(p->fd, page, PAGE_SIZE) < 0) {
+                perror("read");
+                exit(1);
+            }
+        }
+        p->pages[page_idx] = page;
+    }
+    return p->pages[page_idx];
 }
 
 void *row_slot(Table *t, uint32_t row) {
     uint32_t page_idx = row / ROWS_PER_PAGE;
-    void *page = t->pages[page_idx];
-    if (page == NULL) {
-        page = malloc(PAGE_SIZE);
-        t->pages[page_idx] = page;
-    }
+    void *page = get_page(t->pager, page_idx);
     uint32_t row_offset = row % ROWS_PER_PAGE;
     return page + row_offset * ROW_SIZE;
 }
