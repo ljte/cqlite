@@ -16,7 +16,9 @@ typedef enum {
 typedef enum {
     STMT_PREPARE_SUCCESS,
     STMT_PREPARE_UNRECOGNIZED,
-    STMT_PREPARE_SYNTAX_ERROR
+    STMT_PREPARE_SYNTAX_ERROR,
+    STMT_PREPARE_STR_TOO_LONG,
+    STMT_PREPARE_ID_NEGATIVE,
 } StatementPrepareResult;
 
 typedef enum {
@@ -29,8 +31,8 @@ typedef enum {
 
 typedef struct {
     uint32_t id;
-    char username[COLUMN_USERNAME_SIZE];
-    char email[COLUMN_EMAIL_SIZE];
+    char username[COLUMN_USERNAME_SIZE + 1];
+    char email[COLUMN_EMAIL_SIZE + 1];
 } Row;
 
 typedef struct {    

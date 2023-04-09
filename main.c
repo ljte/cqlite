@@ -11,7 +11,7 @@ int main() {
 
     while (1) {
         printf(">>> ");
-        if ( ir_read_line(r, stdin) < 0 ) {
+        if (ir_read_line(r, stdin) < 0) {
             break;
         }
         if (is_meta_command(r->buf)) {
@@ -33,11 +33,18 @@ int main() {
         case STMT_PREPARE_SYNTAX_ERROR:
             fprintf(stderr, "Syntax error: %s\n", r->buf);
             continue;
+        case STMT_PREPARE_STR_TOO_LONG:
+            fprintf(stderr, "Input too long: %s\n", r->buf);
+            continue;
+        case STMT_PREPARE_ID_NEGATIVE:
+            fprintf(stderr, "Id must be positive: %s\n", r->buf);
+            continue;
         }
         switch (exec_statement(t, &stmt)) {
         case EXECUTE_SUCCESS:
             break;
         case EXECUTE_TABLE_FULL:
+            fprintf(stderr, "Error: table full\n");
             break;
         }
     }

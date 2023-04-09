@@ -25,14 +25,36 @@ StatementPrepareResult prepare_statement(InputReader *r,
 
     if (strncmp(r->buf, "insert", 6) == 0) {
         stmt->type = STATEMENT_INSERT;
-        int args_assigned = sscanf(r->buf,
-            "insert %u %s %s",
-             &stmt->insert_row.id,
-             stmt->insert_row.username,
-             stmt->insert_row.email);
-        if (args_assigned < 3) {
+
+        if (strtok(r->buf, " ") == NULL) {
             return STMT_PREPARE_SYNTAX_ERROR;
         }
+
+        char *id_str = strtok(NULL, " ");
+        char *username = strtok(NULL, " ");
+        char *email = strtok(NULL, " ");
+
+        if (id_str == NULL || username == NULL || email == NULL) {
+            return STMT_PREPARE_SYNTAX_ERROR;
+        }
+
+        int64_t id = atoi(id_str);
+
+        if (id < 0) {
+            return STMT_PREPARE_ID_NEGATIVE;
+        }
+
+        if (strlen(username) > COLUMN_USERNAME_SIZE) {
+            return STMT_PREPARE_STR_TOO_LONG;
+        }
+        if (strlen(email) > COLUMN_EMAIL_SIZE) {
+            return STMT_PREPARE_STR_TOO_LONG;
+        }
+
+        stmt->insert_row.id = (uint32_t) id;
+        strcpy(stmt->insert_row.username, username);
+        strcpy(stmt->insert_row.email, email);
+
         return STMT_PREPARE_SUCCESS;
     }
     return STMT_PREPARE_UNRECOGNIZED;
@@ -51,7 +73,7 @@ ExecuteResult exec_statement(Table *t, Statement *stmt) {
 void serialize_row(void *buf, Row *r) {
     memcpy(buf + ID_OFFSET, &r->id, ID_SIZE);
     memcpy(buf + USERNAME_OFFSET, &r->username, USERNAME_SIZE);
-    memcpy(buf + EMAIL_OFFSET, &r->email, EMAIL_OFFSET);
+    memcpy(buf + EMAIL_OFFSET, &r->email, EMAIL_SIZE);
 }
 
 void deserialize_row(void *buf, Row *r) {
@@ -95,6 +117,7 @@ ExecuteResult exec_insert(Table *t, Statement *stmt) {
 
     serialize_row(slot, &stmt->insert_row);
     t->num_rows++;
+    printf("INSERTED 1\n");
     return EXECUTE_SUCCESS;
 }
 
