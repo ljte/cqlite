@@ -48,17 +48,20 @@ typedef struct {
 typedef struct {
     int fd;
     uint32_t file_len;
+    uint32_t num_pages;
     void *pages[TABLE_MAX_PAGES];
 } Pager;
 
 typedef struct {
     uint32_t num_rows;
     Pager *pager;
+    uint32_t root_page;
 } Table;
 
 typedef struct {
     Table *table;
-    uint32_t row;
+    uint32_t page;
+    uint32_t cell;
     bool end_of_table;
 } Cursor;
 
@@ -79,5 +82,7 @@ void deserialize_row(void *buf, Row *r);
 
 Cursor *table_start(Table *t);
 Cursor *table_end(Table *t);
+
+void *get_page(Pager *p, uint32_t page_idx);
 
 #endif
