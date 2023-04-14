@@ -1,5 +1,6 @@
 #include <inttypes.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "reader.h"
 
@@ -55,6 +56,12 @@ typedef struct {
     Pager *pager;
 } Table;
 
+typedef struct {
+    Table *table;
+    uint32_t row;
+    bool end_of_table;
+} Cursor;
+
 
 Table *open_db(const char *filename);
 void close_db(Table *t);
@@ -69,5 +76,8 @@ ExecuteResult exec_select(Table *t, Statement *stmt);
 
 void serialize_row(void *buf, Row *r);
 void deserialize_row(void *buf, Row *r);
+
+Cursor *table_start(Table *t);
+Cursor *table_end(Table *t);
 
 #endif

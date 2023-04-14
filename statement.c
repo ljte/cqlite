@@ -19,6 +19,29 @@ const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
 const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
 
 
+Cursor *table_start(Table *t) {
+    Cursor *c = malloc(sizeof(Cursor));
+    c->table = t;
+    c->row = 0;
+    c->end_of_table = false;
+    return c;
+}
+
+Cursor *table_end(Table *t) {
+    Cursor *c = malloc(sizeof(Cursor));
+    c->table = t;
+    c->row = t->num_rows;
+    c->end_of_table = true;
+    return c;
+}
+
+void cursor_advance(Cursor *c) {
+    c->row += 1;
+    if (c->row >= c->table->num_rows) {
+        c->end_of_table = true;
+    }
+}
+
 StatementPrepareResult prepare_statement(InputReader *r,
                                          Statement *stmt) {
 
@@ -195,9 +218,10 @@ void *get_page(Pager *p, uint32_t page_idx) {
     return p->pages[page_idx];
 }
 
-void *row_slot(Table *t, uint32_t row) {
+void *cursor_value(Cursor *c) {
+    uint32_t row = c->row;
     uint32_t page_idx = row / ROWS_PER_PAGE;
-    void *page = get_page(t->pager, page_idx);
+    void *page = get_page(c->table->pager, page_idx);
     uint32_t row_offset = row % ROWS_PER_PAGE;
     return page + row_offset * ROW_SIZE;
 }
@@ -206,20 +230,25 @@ ExecuteResult exec_insert(Table *t, Statement *stmt) {
     if (t->num_rows >= TABLE_MAX_ROWS) {
         return EXECUTE_TABLE_FULL;
     }
-    void *slot = row_slot(t, t->num_rows);
 
-    serialize_row(slot, &stmt->insert_row);
+    Cursor *c = table_end(t);
+
+    serialize_row(cursor_value(c), &stmt->insert_row);
     t->num_rows++;
+    free(c);
     printf("INSERTED 1\n");
     return EXECUTE_SUCCESS;
 }
 
 ExecuteResult exec_select(Table *t, Statement *stmt) {
+    Cursor *c = table_start(t);
     Row r;
 
-    for (uint32_t i = 0; i < t->num_rows; i++) {
-        deserialize_row(row_slot(t, i), &r);
+    while (!c->end_of_table) {
+        deserialize_row(cursor_value(c), &r);
         printf("(%d, %s, %s)\n", r.id, r.username, r.email);
+        cursor_advance(c);
     }
+    free(c);
     return EXECUTE_SUCCESS;
 }
