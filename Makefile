@@ -3,7 +3,7 @@ GDB = gdb
 GCCFLAGS = -Wall -Werror=format-security -Werror=implicit-function-declaration
 TARGET = ./bin/cqlite
 DEBUG_TARGET = ./bin/cqlite.dbg
-SRC = main.c statement.c metacmd.c reader.c leaf.c
+SRC = main.c statement.c metacmd.c reader.c leaf.c constants.c
 
 all: build
 	$(TARGET)

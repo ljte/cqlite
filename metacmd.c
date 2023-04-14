@@ -8,8 +8,7 @@
 
 
 void print_constants(void);
-extern const uint32_t ROW_SIZE;
-extern const uint32_t PAGE_SIZE;
+void print_leaf_node(void *node);
 
 
 MetaCommandExecResult exec_meta_command(InputReader *r, Table* t) {
@@ -18,8 +17,12 @@ MetaCommandExecResult exec_meta_command(InputReader *r, Table* t) {
         close_db(t);
         exit(0);
     }
-    if (strncmp(r->buf, ".constants", 10)) {
+    if (strncmp(r->buf, ".constants", 10) == 0) {
         print_constants();
+        return META_COMMAND_SUCCESS;
+    }
+    if (strncmp(r->buf, ".btree", 6) == 0) {
+        print_leaf_node(get_page(t->pager, 0));
         return META_COMMAND_SUCCESS;
     }
     return META_COMMAND_UNRECOGNIZED;
@@ -36,4 +39,13 @@ void print_constants(void) {
     printf("Leaf node cell size: %d\n", LEAF_NODE_CELL_SIZE);
     printf("Leaf node space for cells: %d\n", LEAF_NODE_SPACE_FOR_CELLS);
     printf("Leaf node max cells: %d\n", LEAF_NODE_MAX_CELLS);
+}
+
+void print_leaf_node(void *node) {
+    uint32_t ncells = *leaf_node_num_cells(node);
+    printf("leaf (size %d)\n", ncells);
+    for (uint32_t i = 0; i < ncells; i++) {
+        uint32_t key = *leaf_node_key(node, i);
+        printf("  - %d : %d\n", i, key);
+    }
 }

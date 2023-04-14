@@ -8,20 +8,6 @@
 #include "statement.h"
 #include "leaf.h"
 
-const uint32_t LEAF_NODE_MAX_CELLS;
-
-const uint32_t ID_SIZE = sizeof_attr(Row, id) * 8;
-const uint32_t USERNAME_SIZE = sizeof_attr(Row, username);
-const uint32_t EMAIL_SIZE = sizeof_attr(Row, email);
-const uint32_t ROW_SIZE = ID_SIZE + USERNAME_SIZE + EMAIL_SIZE;
-const uint32_t ID_OFFSET = 0;
-const uint32_t USERNAME_OFFSET = ID_OFFSET + ID_SIZE;
-const uint32_t EMAIL_OFFSET = USERNAME_OFFSET + USERNAME_SIZE;
-const uint32_t PAGE_SIZE = 4096;
-const uint32_t ROWS_PER_PAGE = PAGE_SIZE / ROW_SIZE;
-const uint32_t TABLE_MAX_ROWS = ROWS_PER_PAGE * TABLE_MAX_PAGES;
-
-
 Cursor *table_start(Table *t) {
     Cursor *c = malloc(sizeof(Cursor));
     c->table = t;
@@ -185,7 +171,7 @@ void close_db(Table *t) {
 
     for (uint32_t i = 0; i < p->num_pages; i++) {
         if (p->pages[i] == NULL) continue;
-        printf("FLUSHING %u\n", i);
+
         pager_flush(p, i);
         free(p->pages[i]);
         p->pages[i] = NULL;
